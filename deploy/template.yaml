@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Automated security incident response (detect, investigate, contain, notify)
+
+Parameters:
+  SocEmail: {Type: String, Description: SOC distribution list}
+  PagerEndpoint: {Type: String, Description: HTTPS endpoint of the paging tool}
+  FlowLogGroup: {Type: String, Default: /vpc/flowlogs}
+  DryRun: {Type: String, Default: "true", AllowedValues: ["true", "false"]}
+
+Resources:
+  EvidenceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      ObjectLockEnabled: true
+      ObjectLockConfiguration:
+        ObjectLockEnabled: Enabled
+        Rule: {DefaultRetention: {Mode: COMPLIANCE, Years: 7}}
+      VersioningConfiguration: {Status: Enabled}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration: [{ServerSideEncryptionByDefault: {SSEAlgorithm: aws:kms}}]
+      PublicAccessBlockConfiguration:
+        {BlockPublicAcls: true, IgnorePublicAcls: true, BlockPublicPolicy: true, RestrictPublicBuckets: true}
+
+  CriticalTopic: {Type: AWS::SNS::Topic, Properties: {Subscription: [{Protocol: https, Endpoint: !Ref PagerEndpoint}, {Protocol: email, Endpoint: !Ref SocEmail}]}}
+  HighTopic:     {Type: AWS::SNS::Topic, Properties: {Subscription: [{Protocol: email, Endpoint: !Ref SocEmail}]}}
+  MediumTopic:   {Type: AWS::SNS::Topic}
+  LowTopic:      {Type: AWS::SNS::Topic}
+
+  ResponderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      Handler: ir_automation.handler.lambda_handler
+      CodeUri: ../
+      Timeout: 300
+      MemorySize: 512
+      ReservedConcurrentExecutions: 5
+      Environment:
+        Variables:
+          EVIDENCE_BUCKET: !Ref EvidenceBucket
+          SNS_CRITICAL: !Ref CriticalTopic
+          SNS_HIGH: !Ref HighTopic
+          SNS_MEDIUM: !Ref MediumTopic
+          SNS_LOW: !Ref LowTopic
+          FLOW_LOG_GROUP: !Ref FlowLogGroup
+          DRY_RUN: !Ref DryRun
+      Events:
+        Sweep:
+          Type: Schedule
+          Properties: {Schedule: rate(5 minutes)}
+        RealTime:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              detail-type: ["AWS API Call via CloudTrail", "AWS Console Sign In via CloudTrail"]
+              detail:
+                eventName: [ConsoleLogin, AttachUserPolicy, AttachRolePolicy, PutUserPolicy,
+                            PutRolePolicy, CreatePolicyVersion, UpdateAssumeRolePolicy,
+                            AddUserToGroup, CreateLoginProfile, UpdateLoginProfile]
+      Policies:
+        - Statement:
+            # read only context gathering
+            - Effect: Allow
+              Action: [cloudtrail:LookupEvents, config:GetResourceConfigHistory,
+                       logs:FilterLogEvents, iam:Get*, iam:List*, ec2:Describe*,
+                       s3:ListAllMyBuckets, s3:GetBucket*, s3:GetPublicAccessBlock,
+                       s3:GetEncryptionConfiguration, s3:ListBucket]
+              Resource: "*"
+            # containment, scoped to the minimum write actions
+            - Effect: Allow
+              Action: [iam:PutUserPolicy, iam:UpdateAccessKey, iam:TagUser,
+                       s3:PutBucketPublicAccessBlock, s3:PutBucketAcl, s3:PutBucketTagging,
+                       ec2:RevokeSecurityGroupIngress, ec2:RevokeSecurityGroupEgress,
+                       ec2:CreateSecurityGroup, ec2:ModifyInstanceAttribute,
+                       ec2:CreateSnapshot, ec2:CreateTags]
+              Resource: "*"
+            - Effect: Allow
+              Action: [s3:PutObject]
+              Resource: !Sub "${EvidenceBucket.Arn}/*"
+            - Effect: Allow
+              Action: [sns:Publish]
+              Resource: [!Ref CriticalTopic, !Ref HighTopic, !Ref MediumTopic, !Ref LowTopic]
+            # the responder may never widen privilege or destroy data
+            - Effect: Deny
+              Action: [iam:Attach*, iam:CreateAccessKey, iam:DeleteUser, s3:DeleteObject,
+                       s3:DeleteBucket, ec2:TerminateInstances, ec2:DeleteSnapshot]
+              Resource: "*"

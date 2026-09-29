@@ -1,0 +1,45 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: .
+plugins: anyio-4.13.0
+collecting ... collected 36 items
+
+tests/test_pipeline.py::TestUnauthorizedAccess::test_five_failures_in_window_is_brute_force PASSED [  2%]
+tests/test_pipeline.py::TestUnauthorizedAccess::test_four_failures_below_threshold PASSED [  5%]
+tests/test_pipeline.py::TestUnauthorizedAccess::test_failures_spread_outside_window PASSED [  8%]
+tests/test_pipeline.py::TestUnauthorizedAccess::test_burst_then_success_is_critical PASSED [ 11%]
+tests/test_pipeline.py::TestUnauthorizedAccess::test_success_from_corporate_ip_ignored PASSED [ 13%]
+tests/test_pipeline.py::TestMassDeletion::test_burst_of_deletes PASSED   [ 16%]
+tests/test_pipeline.py::TestMassDeletion::test_normal_cleanup_not_flagged PASSED [ 19%]
+tests/test_pipeline.py::TestMassDeletion::test_denied_deletes_not_counted PASSED [ 22%]
+tests/test_pipeline.py::TestPrivilegeEscalation::test_self_grant_admin PASSED [ 25%]
+tests/test_pipeline.py::TestPrivilegeEscalation::test_allowlisted_pipeline_ignored PASSED [ 27%]
+tests/test_pipeline.py::TestPrivilegeEscalation::test_inline_self_policy_high PASSED [ 30%]
+tests/test_pipeline.py::TestPrivilegeEscalation::test_access_key_for_other_user_not_flagged PASSED [ 33%]
+tests/test_pipeline.py::TestMisconfiguration::test_public_acl_bucket PASSED [ 36%]
+tests/test_pipeline.py::TestMisconfiguration::test_public_policy_bucket PASSED [ 38%]
+tests/test_pipeline.py::TestMisconfiguration::test_private_and_blocked_buckets_clean PASSED [ 41%]
+tests/test_pipeline.py::TestMisconfiguration::test_ssh_open_to_world PASSED [ 44%]
+tests/test_pipeline.py::TestMisconfiguration::test_all_traffic_open_is_critical PASSED [ 47%]
+tests/test_pipeline.py::TestMisconfiguration::test_https_and_internal_ssh_clean PASSED [ 50%]
+tests/test_pipeline.py::TestInvestigation::test_user_context PASSED      [ 52%]
+tests/test_pipeline.py::TestInvestigation::test_bucket_context_reads_owner_tags PASSED [ 55%]
+tests/test_pipeline.py::TestInvestigation::test_sg_context_finds_instances PASSED [ 58%]
+tests/test_pipeline.py::TestInvestigation::test_missing_source_degrades_gracefully PASSED [ 61%]
+tests/test_pipeline.py::TestContainment::test_quarantine_user PASSED     [ 63%]
+tests/test_pipeline.py::TestContainment::test_evidence_integrity PASSED  [ 66%]
+tests/test_pipeline.py::TestContainment::test_lock_public_bucket PASSED  [ 69%]
+tests/test_pipeline.py::TestContainment::test_critical_sg_isolates_instance PASSED [ 72%]
+tests/test_pipeline.py::TestContainment::test_brute_force_without_success_monitors_only PASSED [ 75%]
+tests/test_pipeline.py::TestContainment::test_dry_run_changes_nothing PASSED [ 77%]
+tests/test_pipeline.py::TestContainment::test_failure_is_recorded_not_raised PASSED [ 80%]
+tests/test_pipeline.py::TestNotification::test_alert_delivered_with_required_fields PASSED [ 83%]
+tests/test_pipeline.py::TestNotification::test_escalation[HIGH-5-HIGH] PASSED [ 86%]
+tests/test_pipeline.py::TestNotification::test_escalation[HIGH-25-CRITICAL] PASSED [ 88%]
+tests/test_pipeline.py::TestNotification::test_escalation[MEDIUM-130-HIGH] PASSED [ 91%]
+tests/test_pipeline.py::TestNotification::test_escalation[LOW-3000-HIGH] PASSED [ 94%]
+tests/test_pipeline.py::test_end_to_end_scenario PASSED                  [ 97%]
+tests/test_pipeline.py::test_detection_throughput PASSED                 [100%]
+
+============================= 36 passed in 56.40s ==============================
