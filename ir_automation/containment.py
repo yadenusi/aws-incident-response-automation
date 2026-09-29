@@ -46,6 +46,13 @@ class Containment:
     # ------------------------------------------------------------ IAM principal
     def quarantine_user(self, inc):
         iam, user = self.c["iam"], inc.principal
+        if inc.details.get("identity_type") not in (None, "IAMUser"):
+            # SSO / assumed role sessions have no IAM user to lock; hand off to a human
+            self.preserve(inc, "cloudtrail_events", inc.evidence_events)
+            self._audit(inc, "MONITOR_ONLY", user, detail={
+                "reason": f"{inc.details['identity_type']} identity: revoke the session in "
+                          "IAM Identity Center or the role's trust policy"})
+            return
         self.preserve(inc, "cloudtrail_events", inc.evidence_events)
         self.preserve(inc, "identity_snapshot", inc.investigation.get("identity", {}))
         if not self.dry_run:
@@ -164,7 +171,7 @@ class Containment:
         method = getattr(self, self.PLAYBOOK[inc.incident_type])
         try:
             method(inc)
-            inc.status = "CONTAINED"
+            inc.status = "DRY_RUN (no changes made)" if self.dry_run else "CONTAINED"
         except Exception as exc:  # noqa: BLE001
             self._audit(inc, "CONTAINMENT_FAILED", inc.resource_id, result="FAILED",
                         detail={"error": str(exc)})

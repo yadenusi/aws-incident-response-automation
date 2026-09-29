@@ -23,6 +23,14 @@ for sg in ec2.describe_security_groups(Filters=[{"Name": "tag:ir:test", "Values"
     ec2.delete_security_group(GroupId=sg["GroupId"])
     print(f"    deleted {sg['GroupId']}")
 
+print("Test VPCs")
+for v in ec2.describe_vpcs(Filters=[{"Name": "tag:ir:test", "Values": ["true"]}])["Vpcs"]:
+    for sg in ec2.describe_security_groups(Filters=[{"Name": "vpc-id", "Values": [v["VpcId"]]}])["SecurityGroups"]:
+        if sg["GroupName"] != "default":
+            ec2.delete_security_group(GroupId=sg["GroupId"])
+    ec2.delete_vpc(VpcId=v["VpcId"])
+    print(f"    deleted {v['VpcId']}")
+
 print("Test buckets")
 for b in s3.list_buckets()["Buckets"]:
     if b["Name"].startswith("ir-test-public-"):

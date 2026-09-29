@@ -213,8 +213,12 @@ def detect_open_security_groups(ec2):
 
 
 def run_event_detectors(events):
-    return (detect_unauthorized_access(events) + detect_mass_deletion(events)
-            + detect_privilege_escalation(events))
+    incidents = (detect_unauthorized_access(events) + detect_mass_deletion(events)
+                 + detect_privilege_escalation(events))
+    for inc in incidents:   # record whether the actor is an IAM user or a federated/SSO role
+        first = inc.evidence_events[0] if inc.evidence_events else {}
+        inc.details["identity_type"] = (first.get("userIdentity") or {}).get("type", "unknown")
+    return incidents
 
 
 def run_posture_detectors(s3, ec2):

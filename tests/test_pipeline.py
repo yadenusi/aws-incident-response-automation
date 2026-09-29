@@ -295,3 +295,12 @@ def test_detection_throughput():
     with open("/tmp/throughput.json", "w") as fh:
         json.dump({"events": len(evs), "seconds": elapsed, "incidents": len(inc)}, fh)
     assert elapsed < 5 and any(i.incident_type == "BRUTE_FORCE_LOGIN" for i in inc)
+
+
+def test_sso_identity_is_monitored_not_quarantined(aws):
+    ev = ct_event("ConsoleLogin", user="student@example.edu", **OK)
+    ev["userIdentity"] = {"type": "AssumedRole", "arn": "arn:aws:sts::1:assumed-role/SSO/student@example.edu"}
+    inc = detectors.run_event_detectors([ev])[0]
+    investigator.investigate(inc, aws)
+    Containment(aws, dry_run=False).contain(inc)
+    assert inc.status == "CONTAINED" and inc.containment[-2]["action"] == "MONITOR_ONLY"
