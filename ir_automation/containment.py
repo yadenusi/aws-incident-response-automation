@@ -77,13 +77,29 @@ class Containment:
                 "BlockPublicAcls": True, "IgnorePublicAcls": True,
                 "BlockPublicPolicy": True, "RestrictPublicBuckets": True})
         self._audit(inc, "ENABLE_PUBLIC_ACCESS_BLOCK", b)
+        # Buckets created since April 2023 have ACLs disabled (BucketOwnerEnforced) and
+        # reject PutBucketAcl; Block Public Access above already neutralises public ACLs.
+        try:
+            rules = s3.get_bucket_ownership_controls(Bucket=b)["OwnershipControls"]["Rules"]
+            acls_disabled = any(r.get("ObjectOwnership") == "BucketOwnerEnforced" for r in rules)
+        except Exception:  # noqa: BLE001  no ownership controls set: ACLs are active
+            acls_disabled = False
+        if acls_disabled:
+            self._audit(inc, "RESET_ACL_PRIVATE", b, result="SKIPPED",
+                        detail={"reason": "ACLs disabled (BucketOwnerEnforced); nothing to reset"})
+        else:
+            if not self.dry_run:
+                s3.put_bucket_acl(Bucket=b, ACL="private")
+            self._audit(inc, "RESET_ACL_PRIVATE", b)
+        # merge the quarantine tag into existing tags instead of replacing them
+        try:
+            tags = [t for t in s3.get_bucket_tagging(Bucket=b)["TagSet"] if t["Key"] != "ir:quarantined"]
+        except Exception:  # noqa: BLE001  bucket has no tags yet
+            tags = []
         if not self.dry_run:
-            s3.put_bucket_acl(Bucket=b, ACL="private")
-        self._audit(inc, "RESET_ACL_PRIVATE", b)
-        if not self.dry_run:
-            s3.put_bucket_tagging(Bucket=b, Tagging={"TagSet": [
+            s3.put_bucket_tagging(Bucket=b, Tagging={"TagSet": tags + [
                 {"Key": "ir:quarantined", "Value": inc.incident_id}]})
-        self._audit(inc, "TAG_RESOURCE", b)
+        self._audit(inc, "TAG_RESOURCE", b, detail={"tags_preserved": len(tags)})
 
     # ------------------------------------------------------------ security groups / EC2
     def revoke_open_rules(self, inc):

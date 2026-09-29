@@ -304,3 +304,18 @@ def test_sso_identity_is_monitored_not_quarantined(aws):
     investigator.investigate(inc, aws)
     Containment(aws, dry_run=False).contain(inc)
     assert inc.status == "CONTAINED" and inc.containment[-2]["action"] == "MONITOR_ONLY"
+
+
+def test_bucket_with_acls_disabled_and_tags_preserved(aws):
+    s3 = aws["s3"]
+    s3.create_bucket(Bucket="modern-bucket", ObjectOwnership="BucketOwnerEnforced")
+    s3.put_bucket_tagging(Bucket="modern-bucket", Tagging={"TagSet": [{"Key": "Owner", "Value": "lab"}]})
+    s3.put_bucket_policy(Bucket="modern-bucket", Policy=json.dumps({"Statement": [
+        {"Effect": "Allow", "Principal": "*", "Action": "s3:GetObject",
+         "Resource": "arn:aws:s3:::modern-bucket/*"}]}))
+    inc = investigator.investigate(detectors.detect_public_buckets(s3)[0], aws)
+    Containment(aws, dry_run=False).contain(inc)
+    assert inc.status == "CONTAINED"
+    assert any(a["action"] == "RESET_ACL_PRIVATE" and a["result"] == "SKIPPED" for a in inc.containment)
+    keys = {t["Key"] for t in s3.get_bucket_tagging(Bucket="modern-bucket")["TagSet"]}
+    assert keys == {"Owner", "ir:quarantined"}
