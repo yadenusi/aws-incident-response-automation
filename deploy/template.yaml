@@ -4,9 +4,12 @@ Description: Automated security incident response (detect, investigate, contain,
 
 Parameters:
   SocEmail: {Type: String, Description: SOC distribution list}
-  PagerEndpoint: {Type: String, Description: HTTPS endpoint of the paging tool}
   FlowLogGroup: {Type: String, Default: /vpc/flowlogs}
   DryRun: {Type: String, Default: "true", AllowedValues: ["true", "false"]}
+  EvidenceRetentionDays:
+    Type: Number
+    Default: 1
+    Description: Object Lock retention for evidence. Use 1 for a lab account, 2555 (7 years) in production.
 
 Resources:
   EvidenceBucket:
@@ -15,14 +18,14 @@ Resources:
       ObjectLockEnabled: true
       ObjectLockConfiguration:
         ObjectLockEnabled: Enabled
-        Rule: {DefaultRetention: {Mode: COMPLIANCE, Years: 7}}
+        Rule: {DefaultRetention: {Mode: GOVERNANCE, Days: !Ref EvidenceRetentionDays}}
       VersioningConfiguration: {Status: Enabled}
       BucketEncryption:
         ServerSideEncryptionConfiguration: [{ServerSideEncryptionByDefault: {SSEAlgorithm: aws:kms}}]
       PublicAccessBlockConfiguration:
         {BlockPublicAcls: true, IgnorePublicAcls: true, BlockPublicPolicy: true, RestrictPublicBuckets: true}
 
-  CriticalTopic: {Type: AWS::SNS::Topic, Properties: {Subscription: [{Protocol: https, Endpoint: !Ref PagerEndpoint}, {Protocol: email, Endpoint: !Ref SocEmail}]}}
+  CriticalTopic: {Type: AWS::SNS::Topic, Properties: {Subscription: [{Protocol: email, Endpoint: !Ref SocEmail}]}}   # add the pager HTTPS endpoint in production
   HighTopic:     {Type: AWS::SNS::Topic, Properties: {Subscription: [{Protocol: email, Endpoint: !Ref SocEmail}]}}
   MediumTopic:   {Type: AWS::SNS::Topic}
   LowTopic:      {Type: AWS::SNS::Topic}
@@ -86,3 +89,7 @@ Resources:
               Action: [iam:Attach*, iam:CreateAccessKey, iam:DeleteUser, s3:DeleteObject,
                        s3:DeleteBucket, ec2:TerminateInstances, ec2:DeleteSnapshot]
               Resource: "*"
+
+Outputs:
+  FunctionName: {Value: !Ref ResponderFunction}
+  EvidenceBucketName: {Value: !Ref EvidenceBucket}

@@ -45,10 +45,15 @@ def run_pipeline(clients, events=None, posture=True, dry_run=None, flow_log_grou
 def lambda_handler(event, context):
     clients = make_clients()
     flow = os.environ.get("FLOW_LOG_GROUP")
-    if event.get("source") == "aws.events":            # scheduled sweep
-        events = detectors.fetch_cloudtrail_events(clients["cloudtrail"])
-        summary, _ = run_pipeline(clients, events, posture=True, flow_log_group=flow)
+    dry = os.environ.get("DRY_RUN", "true") == "true"
+    if "dry_run" in event:                              # per invocation override for testing
+        dry = str(event["dry_run"]).lower() == "true"
+    if event.get("source") == "aws.events":            # scheduled sweep or manual invoke
+        events = detectors.fetch_cloudtrail_events(clients["cloudtrail"], event.get("lookback_min"))
+        summary, _ = run_pipeline(clients, events, posture=True, flow_log_group=flow,
+                                  dry_run=dry)
     else:                                               # single CloudTrail event
-        summary, _ = run_pipeline(clients, [event], posture=False, flow_log_group=flow)
+        summary, _ = run_pipeline(clients, [event], posture=False, flow_log_group=flow,
+                                  dry_run=dry)
     print(json.dumps(summary))
     return summary

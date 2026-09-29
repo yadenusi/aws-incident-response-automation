@@ -37,7 +37,7 @@ class Containment:
         digest = hashlib.sha256(body).hexdigest()
         if not self.dry_run:
             self.c["s3"].put_object(Bucket=config.EVIDENCE_BUCKET, Key=key, Body=body,
-                                    ServerSideEncryption="AES256",
+                                    ServerSideEncryption="AES256", ChecksumAlgorithm="SHA256",
                                     Metadata={"sha256": digest, "incident": inc.incident_id})
         self._audit(inc, "PRESERVE_EVIDENCE", f"s3://{config.EVIDENCE_BUCKET}/{key}",
                     detail={"sha256": digest, "bytes": len(body)})
