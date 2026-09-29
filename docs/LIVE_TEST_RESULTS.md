@@ -100,3 +100,17 @@ $ aws s3 ls s3://ir-automation-evidencebucket-v7mavcitga67 --recursive
               reason: ACLs disabled (BucketOwnerEnforced); nothing to reset
 23:34:19.740  TAG_RESOURCE                ir-test-public-d7e44fcd  SUCCESS  tags_preserved: 3
 ```
+## E8. Cleanup of all test resources
+```
+$ python3 scripts/cleanup.py
+IAM test user
+    deleted
+Test security groups
+    deleted sg-08e497a022fc7a5fe
+Test VPCs
+    deleted vpc-006be0f75071709cb
+Test buckets
+    deleted ir-test-public-4b55df25
+    deleted ir-test-public-d7e44fcd
+    deleted ir-test-public-d8e0d58d
+```

@@ -38,4 +38,4 @@ for b in s3.list_buckets()["Buckets"]:
             s3.delete_object(Bucket=b["Name"], Key=o["Key"])
         s3.delete_bucket(Bucket=b["Name"])
         print(f"    deleted {b['Name']}")
-print("Done. The ir-quarantine-sg (if created) and the evidence bucket are removed by 'sam delete'.")
+print("Done. The ir-quarantine-sg (if created) and the evidence bucket are removed by 'aws cloudformation delete-stack'.")
