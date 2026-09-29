@@ -38,7 +38,6 @@ Resources:
       CodeUri: ../
       Timeout: 300
       MemorySize: 512
-      ReservedConcurrentExecutions: 5
       Environment:
         Variables:
           EVIDENCE_BUCKET: !Ref EvidenceBucket
